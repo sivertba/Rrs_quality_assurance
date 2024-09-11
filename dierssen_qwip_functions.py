@@ -87,12 +87,11 @@ def calculate_ndi(rrs_vis, wavelengths):
     :return: A np array containing NDI values and indices of 492 and 665 nm.
     """
 
-    wavelengths = np.array(wavelengths)
-    
+    wavelengths = np.array(wavelengths)    
     # Find closest indices 
-    index_492 = np.argmin(np.abs(wavelengths - 492))
-    index_665 = np.argmin(np.abs(wavelengths - 665))
-
+    offset = np.argmin(np.abs(wavelengths - 400))
+    index_492 = np.argmin(np.abs(wavelengths - 492)) - offset
+    index_665 = np.argmin(np.abs(wavelengths - 665)) - offset
     # Calculate normalized difference index (ndi) / quality control index (qci) - term is used interchangably in the code and manuscript of the authors
     ndi = (rrs_vis[:, index_665] - rrs_vis[:, index_492]) / (rrs_vis[:, index_665] + rrs_vis[:, index_492])
     
@@ -152,9 +151,9 @@ def calculate_classification_indices(df, wavelengths):
     rrs_560_wavelength = find_closest_wavelength(wavelengths, 560)
     rrs_665_wavelength = find_closest_wavelength(wavelengths, 665)
 
-    rrs_492 = df.loc[:, str(rrs_492_wavelength)].to_numpy()
-    rrs_560 = df.loc[:, str(rrs_560_wavelength)].to_numpy()
-    rrs_665 = df.loc[:, str(rrs_665_wavelength)].to_numpy()
+    rrs_492 = df.loc[:, rrs_492_wavelength].to_numpy()
+    rrs_560 = df.loc[:, rrs_560_wavelength].to_numpy()
+    rrs_665 = df.loc[:, rrs_665_wavelength].to_numpy()
     
     step1 = (rrs_665 > rrs_560)
     # see paper

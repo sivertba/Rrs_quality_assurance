@@ -1,6 +1,10 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
+import os
+# Add the directory containing 'dierssen_qwip_functions' to the system path
+sys.path.append(os.path.dirname(__file__))
 import dierssen_qwip_functions as qf
 
 # This code calculates QWIP using the functions defined in 'dierssen_qwip_functions'
@@ -44,10 +48,11 @@ def run_qwip_calculations(df, spectral_resolution, wavelengths=None, sensor_coef
     """
     Run the QWIP calculation for a given dataframe.
 
-    :params df: input dataframe
-    :params spectral_resolution: the spectral_resolution either 'hyper' or 'multi'
-    :params wavelengths (optional): multispectral wavelengths - needs to be defined if spectral_resolution == 'multi'
-    params sensor_coeffs (optional): multispectral sensor coeffs - needs to be defined if spectral_resolution == 'multi'
+    :param df: input dataframe
+    :param spectral_resolution: the spectral_resolution either 'hyper' or 'multi'
+    :param wavelengths (optional): multispectral wavelengths - needs to be defined if spectral_resolution == 'multi'
+    :param sensor_coeffs (optional): multispectral sensor coeffs - needs to be defined if spectral_resolution == 'multi'
+    :return: a tuple containing the updated dataframe, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492, index_665
     """
 
     # Extract visible Rrs from input DF and calculate the apparent visible wavelength (AVW)
@@ -66,6 +71,7 @@ def run_qwip_calculations(df, spectral_resolution, wavelengths=None, sensor_coef
 
     # add QWIP values to df
     df['ndi'] = ndi
+    df['avw'] = avw
     df['index_492'] = index_492
     df['index_665'] = index_665
     df['qwip_score'] = qwip_score
@@ -74,71 +80,92 @@ def run_qwip_calculations(df, spectral_resolution, wavelengths=None, sensor_coef
     df['ind_500a'] = ind_500a
     df['ind_600a'] = ind_600a
    
-    print(f'QWIP {spectral_resolution} spectral calculation complete.')
+    return df, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492, index_665
 
-    return df, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492,index_665
+def getQWIP(rrsVector, wavenumbers):
+    """
+    Calculate the QWIP score for a given set of rrsVector and wavenumbers.
 
-# load your data frame (should just be Rrs wavelengths)
-df = pd.read_csv('your_rrs_data.csv')
-# Run the QWIP calculations for the DataFrame `df`:
+    Parameters:
+    - rrsVector (list): A list of Rrs values.
+    - wavenumbers (list): A list of wavenumber values.
+
+    Returns:
+    - qwip_score (Series): A pandas Series containing the QWIP scores.
+
+    """
+    df =[]
+    df.append(rrsVector)
+    df.append(rrsVector)
+    df.append(rrsVector)
+    df.append(rrsVector)
+    df.append(rrsVector)
+    
+    df = pd.DataFrame(df, columns=wavenumbers)
+    df_out, _, _, _, _, _, _, _, _ = run_qwip_calculations(df, "hyper", wavenumbers)
+    return df_out["qwip_score"].mean()
+
 
 # Hyperspectral (assuming 1nm spectral resolution)
-df_hyper, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492, index_665 = run_qwip_calculations(df, 'hyper', wavelengths=np.arange(400, 701))
+def plotQWIP(df, spectral_resolution, wavelengths=None, sensor_coeffs=None):
+    """
+    Run the QWIP calculation for a given dataframe.
 
-# Multispectral (select from dictionaries):
-# df_multi, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492,index_665 = run_qwip_calculations(df, 'multi', wavelengths=sensor_wavelengths["OLCI-S3A"], sensor_coeffs = sensor_coef['OLCI-S3A']) 
+    :param df: input dataframe
+    :param spectral_resolution: the spectral_resolution either 'hyper' or 'multi'
+    :param wavelengths (optional): multispectral wavelengths - needs to be defined if spectral_resolution == 'multi'
+    :param sensor_coeffs (optional): multispectral sensor coeffs - needs to be defined if spectral_resolution == 'multi'
+    :return: figure and axis objects
+    """
+    if sensor_coeffs is not None:
+        raise ValueError('This parameter configuration is not supported.')
+    
+    df_out , fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492, index_665 = run_qwip_calculations(df, 
+                                                                                                   spectral_resolution, 
+                                                                                                   wavelengths=wavelengths)
 
+    # Keep even for multispectral resolution:
+    avw_poly = np.arange(400, 631)
 
-# Plot QWIP:
-# Keep even for multispectral resolution:
-avw_poly = np.arange(400, 631)
+    # Uncomment depending on spectral_resolution:
+    # hyperspectral:
+    wave = np.arange(400, 701)
+    # multispectral: - define sensor wavelengths
+    # wave = np.array(sensor_wavelengths["OLCI-S3A"])
 
-# Uncomment depending on spectral_resolution:
-# hyperspectral:
-wave = np.arange(400, 701)
-# multispectral: - define sensor wavelengths
-# wave = np.array(sensor_wavelengths["OLCI-S3A"])
+    # Generate figure to show NDI index relative to AVW
+    fit4a = fit1 + 0.4
+    fit4b = fit1 - 0.4
 
-# Generate figure to show NDI index relative to AVW
+    ## Plot
 
-fit1a = fit1 + 0.1
-fit1b = fit1 - 0.1
-fit2a = fit1 + 0.2
-fit2b = fit1 - 0.2
-fit3a = fit1 + 0.3
-fit3b = fit1 - 0.3
-fit4a = fit1 + 0.4
-fit4b = fit1 - 0.4
+    fig, ax = plt.subplots()
 
-## Plot
+    ax.plot(avw_poly, fit1, '-k', linewidth=2)
+    qwip_lines = []
+    qwip_lines.append(ax.plot(avw_poly, fit4a, '--r', linewidth=2, label='QWIP ± 0.4')[0])
+    qwip_lines.append(ax.plot(avw_poly, fit4b, '--r', linewidth=2)[0])
 
-fig, ax = plt.subplots()
+    ax.set_xlabel('AVW (nm)', fontsize=16)
+    ax.set_ylabel(f'NDI ({wave[index_492]},{wave[index_665]})', fontsize=16)
+    ax.set_ylim([-2.5, 2])
+    ax.set_xlim([440, 630])
 
-g1 = ax.plot(avw[ind_500a], ndi[ind_500a], 'og', markersize=1, label='Index 500', alpha=0.5)
-g2 = ax.plot(avw[ind_400a], ndi[ind_400a], 'ob', markersize=1, label='Index 400', alpha=0.5)
-g3 = ax.plot(avw[ind_600a], ndi[ind_600a], 'or', markersize=1, label='Index 600', alpha=0.5)
-ax.plot(avw_poly, fit1, '-k', linewidth=2)
-qwip_lines = []
-qwip_lines.append(ax.plot(avw_poly, fit1a, '--g', linewidth=2, label='QWIP ± 0.1')[0])
-qwip_lines.append(ax.plot(avw_poly, fit1b, '--g', linewidth=2)[0])
-qwip_lines.append(ax.plot(avw_poly, fit2a, '--', linewidth=2, color=[0.9290, 0.6940, 0.1250], label='QWIP ± 0.2')[0])
-qwip_lines.append(ax.plot(avw_poly, fit2b, '--', linewidth=2, color=[0.9290, 0.6940, 0.1250])[0])
-qwip_lines.append(ax.plot(avw_poly, fit3a, '--', linewidth=2, color=[0.8500, 0.3250, 0.0980], label='QWIP ± 0.3')[0])
-qwip_lines.append(ax.plot(avw_poly, fit3b, '--', linewidth=2, color=[0.8500, 0.3250, 0.0980])[0])
-qwip_lines.append(ax.plot(avw_poly, fit4a, '-r', linewidth=2, label='QWIP ± 0.4')[0])
-qwip_lines.append(ax.plot(avw_poly, fit4b, '-r', linewidth=2)[0])
+    for i in range(len(df_out)):
+        ax.plot(df_out['avw'][i], df_out['ndi'][i], 'ok', markersize=1)
 
-ax.set_xlabel('AVW (nm)', fontsize=16)
-ax.set_ylabel(f'NDI ({wave[index_492]},{wave[index_665]})', fontsize=16)
-ax.set_ylim([-2.5, 2])
-ax.set_xlim([440, 630])
+    return fig, ax, df_out, fit1
 
-# Combined legend
-legend1 = ax.legend(handles=[g2[0],g1[0], g3[0]], loc='lower right', fontsize=12)
-legend2 = ax.legend(handles=qwip_lines[::2], loc='upper left', fontsize=12)
-ax.add_artist(legend1)
-
-#plt.savefig('qwip_wispstation_lxp.png', dpi=600)
-
-plt.show()
-
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('df', type=str, help='Path to the input dataframe')
+    parser.add_argument('spectral_resolution', type=str, help='Spectral resolution of the data: hyper or multi')
+    parser.add_argument('wavelengths', type=str, help='Wavelengths of the multispectral sensor')
+    parser.add_argument('sensor_coeffs', type=str, help='Sensor coefficients')
+    args = parser.parse_args()
+    
+    # Load your df
+    df = pd.read_csv('your_df.csv')
+    fig, ax = plotQWIP(df, 'hyper')
+    plt.show()
