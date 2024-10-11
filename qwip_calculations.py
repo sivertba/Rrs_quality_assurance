@@ -82,6 +82,27 @@ def run_qwip_calculations(df, spectral_resolution, wavelengths=None, sensor_coef
    
     return df, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492, index_665
 
+def getQWIPFull(rrsVector, wavenumbers):
+    """
+    Run the QWIP calculation for a given dataframe.
+
+    :param df: input dataframe
+    :param spectral_resolution: the spectral_resolution either 'hyper' or 'multi'
+    :param wavelengths (optional): multispectral wavelengths - needs to be defined if spectral_resolution == 'multi'
+    :param sensor_coeffs (optional): multispectral sensor coeffs - needs to be defined if spectral_resolution == 'multi'
+    :return: a tuple containing the updated dataframe, fit1, avw, ndi, ind_400a, ind_500a, ind_600a, index_492, index_665
+
+    """
+    df =[]
+    df.append(rrsVector)
+    df.append(rrsVector)
+    df.append(rrsVector)
+    df.append(rrsVector)
+    df.append(rrsVector)
+    
+    df = pd.DataFrame(df, columns=wavenumbers)
+    return run_qwip_calculations(df, "hyper", wavenumbers)
+
 def getQWIP(rrsVector, wavenumbers):
     """
     Calculate the QWIP score for a given set of rrsVector and wavenumbers.
@@ -94,15 +115,8 @@ def getQWIP(rrsVector, wavenumbers):
     - qwip_score (Series): A pandas Series containing the QWIP scores.
 
     """
-    df =[]
-    df.append(rrsVector)
-    df.append(rrsVector)
-    df.append(rrsVector)
-    df.append(rrsVector)
-    df.append(rrsVector)
-    
-    df = pd.DataFrame(df, columns=wavenumbers)
-    df_out, _, _, _, _, _, _, _, _ = run_qwip_calculations(df, "hyper", wavenumbers)
+    qwip_tuple = getQWIPFull(rrsVector, wavenumbers)
+    df_out = qwip_tuple[0]
     return df_out["qwip_score"].mean()
 
 
